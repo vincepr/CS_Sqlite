@@ -16,6 +16,12 @@ if (command == ".dbinfo")
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     Console.WriteLine("Logs from your program will appear here!");
 
+    // we throw away first 16 byte header
+    byte[] pageSizeBytes = new byte[2];
+    databaseFile.Read(pageSizeBytes, 16,2);
+    var pageSize = ReadUInt16BigEndian(pageSizeBytes);
+    Console.WriteLine($"database page size: {pageSize}");
+
     // Uncomment this line to pass the first stage
     // databaseFile.Seek(16, SeekOrigin.Begin); // Skip the first 16 bytes
     // byte[] pageSizeBytes = new byte[2];
