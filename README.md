@@ -1,20 +1,19 @@
 # sqlite implementation in csharp
 A barebones SQLite implementation. Goal is to support basic queries like SELECT directly on the raw file without any libraries used.
 
-startpoint was [codecrafters.io](https://codecrafters.io) though i want to write my own unit-tests to check for validation on the steps.
+startpoint was [codecrafters.io](https://codecrafters.io) though i want to write my own unit-tests to check for validation along the steps instead using their unit testing pipeline.
 
 
 # Steps
 
-
 ## make reading db info out possible
 ```
-$ sqlite3 sample.db .dbinfo
+$ CS_Sqlite sample.db .dbinfo
 ```
 ## print number of tables
 `.dbinfro` should read out the total number of tables
 ```
-$ sqlite3 sample.db .dbinfo
+$ CS_Sqlite sample.db .dbinfo
 
 database page size:  4096
 write format:        1
@@ -36,13 +35,13 @@ data version:        1
 
 ## print table names
 ```
-$ ./your_sqlite3.sh sample.db .tables
+$ ./CS_Sqlite sample.db .tables
 ```
 - should print out names of all tables
 
 ## Count rows in a table
 ```
-$ ./your_sqlite3.sh sample.db "SELECT COUNT(*) FROM apples"
+$ ./CS_Sqlite "SELECT COUNT(*) FROM apples"
 
 ```
 - should count the ammount of rows from a table
@@ -54,23 +53,23 @@ Page number is 1-indexed so to get the offset we need to subtract page_number - 
 
 ## Read data from a single column
 ```
-$ ./your_sqlite3.sh sample.db "SELECT name FROM apples"
+$ ./CS_Sqlite sample.db "SELECT name FROM apples"
 
 ```
 
 ## Read data from multiple columns
 ```
-$ ./your_sqlite3.sh sample.db "SELECT name, color FROM apples"
+$ ./CS_Sqlite sample.db "SELECT name, color FROM apples"
 ```
 
 ## Filter data with a where clause
 ```
-$ ./your_sqlite3.sh sample.db "SELECT name, color FROM apples WHERE color = 'Yellow'"
+$ ./CS_Sqlite sample.db "SELECT name, color FROM apples WHERE color = 'Yellow'"
 ```
 - implement it for one page first
 ## Retreive data using a full-table scan
 ```
-$ ./your_sqlite3.sh superheroes.db "SELECT id, name FROM superheroes WHERE eye_color = 'Pink Eyes'"
+$ ./CS_Sqlite superheroes.db "SELECT id, name FROM superheroes WHERE eye_color = 'Pink Eyes'"
 
 ```
 - now implement it handling multiple pages
@@ -80,6 +79,6 @@ $ ./your_sqlite3.sh superheroes.db "SELECT id, name FROM superheroes WHERE eye_c
 
 ## Retrieve data using an index
 ```
-$ ./your_sqlite3.sh companies.db "SELECT id, name FROM companies WHERE country = 'eritrea'"
+$ ./CS_Sqlite companies.db "SELECT id, name FROM companies WHERE country = 'eritrea'"
 ```
 - implement index scanning. Rather than reading all rows and then filtering in memory the programm should directly search more intelligent.
