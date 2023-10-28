@@ -1,77 +1,85 @@
-[![progress-banner](https://backend.codecrafters.io/progress/sqlite/f3954e67-3d85-4d3f-bd8d-f97011dd3571)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# sqlite implementation in csharp
+A barebones SQLite implementation. Goal is to support basic queries like SELECT directly on the raw file without any libraries used.
 
-This is a starting point for C# solutions to the
-["Build Your Own SQLite" Challenge](https://codecrafters.io/challenges/sqlite).
+startpoint was [codecrafters.io](https://codecrafters.io) though i want to write my own unit-tests to check for validation on the steps.
 
-In this challenge, you'll build a barebones SQLite implementation that supports
-basic SQL queries like `SELECT`. Along the way we'll learn about
-[SQLite's file format](https://www.sqlite.org/fileformat.html), how indexed data
-is
-[stored in B-trees](https://jvns.ca/blog/2014/10/02/how-does-sqlite-work-part-2-btrees/)
-and more.
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+# Steps
 
-# Passing the first stage
 
-The entry point for your SQLite implementation is in `src/Program.cs`. Study and
-uncomment the relevant code, and push your changes to pass the first stage:
+## make reading db info out possible
+```
+$ sqlite3 sample.db .dbinfo
+```
+## print number of tables
+`.dbinfro` should read out the total number of tables
+```
+$ sqlite3 sample.db .dbinfo
 
-```sh
-git add .
-git commit -m "pass 1st stage" # any msg
-git push origin master
+database page size:  4096
+write format:        1
+read format:         1
+
+...
+
+number of tables:    5
+schema size:         330
+data version:        1
+```
+### resources
+- https://www.sqlite.org/fileformat.html#storage_of_the_sql_database_schema
+- https://www.sqlite.org/schematab.html
+- https://fly.io/blog/sqlite-internals-btree/
+- https://link.springer.com/content/pdf/10.1007/978-3-030-98467-0_5.pdf
+- https://saveriomiroddi.github.io/SQLIte-database-file-format-diagrams/
+
+
+## print table names
+```
+$ ./your_sqlite3.sh sample.db .tables
+```
+- should print out names of all tables
+
+## Count rows in a table
+```
+$ ./your_sqlite3.sh sample.db "SELECT COUNT(*) FROM apples"
+
+```
+- should count the ammount of rows from a table
+
+### notes
+rootpage stores page number of root b-tree page for tables and indexes.
+
+Page number is 1-indexed so to get the offset we need to subtract page_number - 1
+
+## Read data from a single column
+```
+$ ./your_sqlite3.sh sample.db "SELECT name FROM apples"
+
 ```
 
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `dotnet (6.0)` installed locally
-1. Run `./your_sqlite3.sh` to run your program, which is implemented in
-   `src/Program.cs`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
-
-# Sample Databases
-
-To make it easy to test queries locally, we've added a sample database in the
-root of this repository: `sample.db`.
-
-This contains two tables: `apples` & `oranges`. You can use this to test your
-implementation for the first 6 stages.
-
-You can explore this database by running queries against it like this:
-
-```sh
-$ sqlite3 sample.db "select id, name from apples"
-1|Granny Smith
-2|Fuji
-3|Honeycrisp
-4|Golden Delicious
+## Read data from multiple columns
+```
+$ ./your_sqlite3.sh sample.db "SELECT name, color FROM apples"
 ```
 
-There are two other databases that you can use:
-
-1. `superheroes.db`:
-   - This is a small version of the test database used in the table-scan stage.
-   - It contains one table: `superheroes`.
-   - It is ~1MB in size.
-1. `companies.db`:
-   - This is a small version of the test database used in the index-scan stage.
-   - It contains one table: `companies`, and one index: `idx_companies_country`
-   - It is ~7MB in size.
-
-These aren't included in the repository because they're large in size. You can
-download them by running this script:
-
-```sh
-./download_sample_databases.sh
+## Filter data with a where clause
 ```
+$ ./your_sqlite3.sh sample.db "SELECT name, color FROM apples WHERE color = 'Yellow'"
+```
+- implement it for one page first
+## Retreive data using a full-table scan
+```
+$ ./your_sqlite3.sh superheroes.db "SELECT id, name FROM superheroes WHERE eye_color = 'Pink Eyes'"
 
-If the script doesn't work for some reason, you can download the databases
-directly from
-[codecrafters-io/sample-sqlite-databases](https://github.com/codecrafters-io/sample-sqlite-databases).
+```
+- now implement it handling multiple pages
+
+### resources
+- traversing a b-tree https://medium.com/basecs/busying-oneself-with-b-trees-78bbf10522e7
+
+## Retrieve data using an index
+```
+$ ./your_sqlite3.sh companies.db "SELECT id, name FROM companies WHERE country = 'eritrea'"
+```
+- implement index scanning. Rather than reading all rows and then filtering in memory the programm should directly search more intelligent.
