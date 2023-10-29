@@ -82,3 +82,59 @@ $ ./CS_Sqlite superheroes.db "SELECT id, name FROM superheroes WHERE eye_color =
 $ ./CS_Sqlite companies.db "SELECT id, name FROM companies WHERE country = 'eritrea'"
 ```
 - implement index scanning. Rather than reading all rows and then filtering in memory the programm should directly search more intelligent.
+
+
+
+## notes about db-file structure
+the file starts with a header part that is exactly 100 bytes long.
+- Beyond this the file is divided into pages of equal size. (default 4096 bytes).
+- each page (besides first) stores data regarding exactly one table
+
+### byte flags
+The first byte contains info about the page-type this page is.
+
+|page type| 1st byte|extra info|
+|---|---|---|
+|table b-tree interior page|0x05||
+|table b-tree leaf page|0x0d||
+|index b-tree interior page|0x02||
+|index b-tree leaf page|0x0a||
+|overflow|page|0x00|for db size ´<´ 64GB|
+|freelist page|0x00|first 8 bytes filled with zero bytes|
+|pointer map|0x01-0x05||
+|locking page| 0x00|only if db-size ´>´ 1GB|
+
+### the first page
+- the header **is part** of the first page.
+- the first page contains the database schema.
+- like the SQLite_Master-Table, with info like:
+  - root page numbers
+  - column names
+  - column types
+
+### Record format
+- The naive (bad) approach of a database would be to just pack records in sequentially. 
+This is obviously a terrible idea for a dynamically growing/shrinking data structure.
+- Instead SQLite will pack data into chunks. Default 4KB, more exact: 4096byte. 
+  - This allows chunks to stay inside file-system boundaries
+  - and so it can read/write/update only those chunks it needs to.
+### page format
+when inspecting data directly on the first page we encounter the leaf-table-header:
+```
+0D-00-00-00-03-0E-C3-00
+```
+- 0x0d indicates he page-type. This **first** page is a **table leaf**
+- 0x0003 is the cell count. This tells us that 3 records exist in this page. 
+
+Directly after this leaf-table-header we encounter the first cell pointer index:
+```
+0F-8F-0F-3D-0E-C3
+```
+- this is a list of 2byte values representing offsets in the page for each record:
+  - 0x0F8F = 3982
+  - 0x0F3D = 3901
+  - 0x0EC3 = 3779
+- Sqlite starts to fill these chunks from the back.
+
+### binary tree
+Sqlite uses a `a b+tree`. 
