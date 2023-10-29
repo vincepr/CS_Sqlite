@@ -87,8 +87,52 @@ $ ./CS_Sqlite companies.db "SELECT id, name FROM companies WHERE country = 'erit
 
 ## notes about db-file structure
 the file starts with a header part that is exactly 100 bytes long.
-- Beyond this the file is divided into pages of equal size. (default 4096 bytes).
-- each page (besides first) stores data regarding exactly one table
+- the file is divided into pages of equal size. (default 4096 bytes).
+- each page (besides first) stores data regarding exactly one table.
+- each page starts with a header (with a total size of 8 byte in case of a data leaf page)
+
+### b-tree regions
+1. 100byte database-header (only on page1)
+2. 8 or 12 byte btree-page-header 
+3. cell pointer array
+4. unallocated space (since it gets filled from back to front)
+5. cell content area
+6. reserved region (used by addons to store custom info) - size is defined in db-header at offset 20. default is 0.
+
+#### 2. btree-page-header
+- 8byte for for leaf-pages. 12byte for interior pages.
+- all multibyte values in the page are big-endian
+
+|offset|size| description                                                        |
+|---|---|--------------------------------------------------------------------|
+|0|1| indicating page type                                               |
+|1|2| start of the first freeblock on the page. 0 for no freeblocks      |
+|3|2| **number of cells** on this page                                   |
+|5|2| start of the cell content area. zero is interpretet as 65535       |
+|7|1| number of fragmented free bytes within cell-content-area           |
+|8|4| right most pointer. this field ONLY exists in interior-btree-pages |
+
+page types:
+- 2 = interior index btree page
+- 5 = interior table btree page
+- 10 = leaf index btree page
+- 13 = leaf table btree page
+- everything else is an type error
+
+#### 3. cell pointer array
+let K be the number of cells on the btree. this array consists of K 2-byte integer offsets to the cell contents.
+
+- in key order. left most cell, the smallest key first.
+- Sqlite will fill the content from the back. 
+
+
+### the first page - aka SQLite_Master_Table - aka schema table
+- the header **is part** of the first page.
+- the first page contains the database schema.
+- SQLite_Master-Table, with info like:
+  - root page numbers
+  - column names
+  - column types
 
 ### byte flags
 The first byte contains info about the page-type this page is.
@@ -104,13 +148,6 @@ The first byte contains info about the page-type this page is.
 |pointer map|0x01-0x05||
 |locking page| 0x00|only if db-size ´>´ 1GB|
 
-### the first page
-- the header **is part** of the first page.
-- the first page contains the database schema.
-- like the SQLite_Master-Table, with info like:
-  - root page numbers
-  - column names
-  - column types
 
 ### Record format
 - The naive (bad) approach of a database would be to just pack records in sequentially. 
@@ -136,5 +173,11 @@ Directly after this leaf-table-header we encounter the first cell pointer index:
   - 0x0EC3 = 3779
 - Sqlite starts to fill these chunks from the back.
 
-### binary tree
-Sqlite uses a `a b+tree`. 
+### Sqlite Data Types
+INTEGER, REAL(floating point), TEXT, BLOB(binary objects), other NUMERIC data such as dates.
+
+### quick definitions
+- freeblock - structure to identify unallocated space. Instead of deleting things get freed and overwritten when needed.
+  - the total amount of free space in a page consists of the size of unallocated region plus total size of all 
+freeblocks plus the number of fragmented free bytes.
+  - SQLite will from time to time reorganize these - called defragmenting the b-tree-page.
