@@ -45,7 +45,7 @@ internal class SqLite
     {
         _file = File.OpenRead(path);
         // (_dbPageSize, _dbSizeInPages, _encodingType, _nrOfTables ) =  ReadHeader(isLogInfo);
-        ReadHeader(isLogInfo);
+        ReadDatabaseHeader(isLogInfo);
         Schemas = ReadFirstPage(isLogInfo);
         // _file.Seek(0, SeekOrigin.Begin); // TODO: remove this after testing
     }
@@ -67,7 +67,7 @@ internal class SqLite
         _file.Close();
     }
 
-    private void ReadHeader(bool isLogInfo = false)
+    private void ReadDatabaseHeader(bool isLogInfo = false)
     {
         // the first 100 bytes of the database file store info about the database:
         //          Offset	Size	Description
@@ -166,12 +166,6 @@ internal class SqLite
         if (bytes[0] != 13)
             throw new InvalidDataException("Type of first page MUST be a leaf table btree-page. val=13");
 
-        // if (bytes[0] == 2) Console.WriteLine("type: interior index btree-page"); 
-        // else if (bytes[0] == 5) Console.WriteLine("type: interior table btree-page"); 
-        // else if (bytes[0] == 10) Console.WriteLine("type: leaf index btree-page"); 
-        // else if (bytes[0] == 13) Console.WriteLine("type: leaf table btree-page");
-        // else throw new InvalidDataException("Illegal flag for b-tree page type.");
-
         // we know every cell in this first table will represent a db-table so:
         _nrOfTables = BinaryPrimitives.ReadUInt16BigEndian(bytes[3..(3 + 2)]);
         if (isLogInfo) Console.WriteLine($"Number of tables: {_nrOfTables}");
@@ -191,5 +185,28 @@ internal class SqLite
             return new Schema(sqlite_master); 
         });
         return schemas;
+    }
+
+    public void ReadPage(int pageNr)
+    {
+        // root_page seems to start with index 1!
+        pageNr -= 1;
+        _file.Seek(_dbPageSize*pageNr, SeekOrigin.Begin);
+        var bytes = ReadBytes(_dbPageSize);
+        if (bytes[0] != 13)
+            throw new InvalidDataException(
+                $"For now we only read first page of table -> we EXPECT a leaf table btree-page. GOT TYPE: {bytes[0]}");
+        // if (bytes[0] == 2) Console.WriteLine("type: interior index btree-page"); 
+        // else if (bytes[0] == 5) Console.WriteLine("type: interior table btree-page"); 
+        // else if (bytes[0] == 10) Console.WriteLine("type: leaf index btree-page"); 
+        // else if (bytes[0] == 13) Console.WriteLine("type: leaf table btree-page");
+        // else throw new InvalidDataException("Illegal flag for b-tree page type."); 
+
+        var nrOfEntries = BinaryPrimitives.ReadUInt16BigEndian(bytes[3..(3 + 2)]);
+        Console.WriteLine("SELECT Count(*) = " + nrOfEntries);
+        
+        
+        
+
     }
 }

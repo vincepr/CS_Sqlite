@@ -8,13 +8,13 @@ validation along the steps instead using their unit testing pipeline.
 
 # Steps
 
-## make reading db info out possible
+## [x] make reading db info out possible
 
 ```
 $ CS_Sqlite sample.db .dbinfo
 ```
 
-## print number of tables
+## [x] print number of tables
 
 `.dbinfro` should read out the total number of tables
 
@@ -40,7 +40,7 @@ data version:        1
 - https://link.springer.com/content/pdf/10.1007/978-3-030-98467-0_5.pdf
 - https://saveriomiroddi.github.io/SQLIte-database-file-format-diagrams/
 
-## print table names
+## [x] print table names
 
 ```
 $ ./CS_Sqlite sample.db .tables
@@ -52,10 +52,9 @@ $ ./CS_Sqlite sample.db .tables
 
 ```
 $ ./CS_Sqlite "SELECT COUNT(*) FROM apples"
-
 ```
 
-- should count the ammount of rows from a table
+- should count the amount of rows from a table
 
 ### notes
 
