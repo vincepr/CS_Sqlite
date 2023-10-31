@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Collections;
 using System.Diagnostics;
 using System.Text;
+using CS_Sqlite;
 
 internal class SqLite
 {
@@ -19,28 +20,34 @@ internal class SqLite
     /// </summary>
     private uint _dbSizeInPages;
 
-    private Encoding _encodingType;
+    private Encoding _encodingType = Encoding.UTF8;
     private ushort _nrOfTables;
+    
+    /// <summary>
+    /// the info stores in the sql_master table. holds info about all other tables in this db
+    /// </summary>
+    public readonly IEnumerable<Schema> Schemas;
 
-    // public void ReadPage()
+    // public void ReadRawPage()
     // {
     //     // we assume the filestream is always pointing to the start of the page(ex after reading first 100bytes header)
     //     var bytes = new byte[_dbPageSize];
     //     _file.Read()
     // }
 
+    // public void RawReadBytes(byte[] bytes, int offset, int size)
+    // {
+    //     if (_file.Read(bytes, offset, size) != size)
+    //         throw new InvalidDataException("could not read expected size");
+    // }
+
     public SqLite(string path, bool isLogInfo = false)
     {
         _file = File.OpenRead(path);
+        // (_dbPageSize, _dbSizeInPages, _encodingType, _nrOfTables ) =  ReadHeader(isLogInfo);
         ReadHeader(isLogInfo);
-        ReadFirstPage(isLogInfo);
+        Schemas = ReadFirstPage(isLogInfo);
         // _file.Seek(0, SeekOrigin.Begin); // TODO: remove this after testing
-    }
-
-    public void RawReadBytes(byte[] bytes, int offset, int size)
-    {
-        if (_file.Read(bytes, offset, size) != size)
-            throw new InvalidDataException("could not read expected size");
     }
 
 
@@ -144,9 +151,10 @@ internal class SqLite
         // 72	20	Reserved for expansion. Must be zero.
         for (var i = 0; i < 20; i++)
             Debug.Assert(dbInfoBytes[i + 72] == 0, $"idx={i}. Reserved for expansion. Must be zero");
+        // return (_dbPageSize, _dbSizeInPages, _encodingType, _nrOfTables);
     }
 
-    private void ReadFirstPage(bool isLogInfo = false)
+    private IEnumerable<Schema> ReadFirstPage(bool isLogInfo = false)
     {
         // this directly follows the 100byte header. So it must be called after reading those bytes or Seek(100)
         // stores info about all tables in this file.
@@ -173,205 +181,15 @@ internal class SqLite
             .Chunk(2)
             .Take(_nrOfTables)
             .Select(u => BinaryPrimitives.ReadUInt16BigEndian(u));
-
-        foreach (var cell in cellPointers)
+        var schemas = cellPointers.Select(cell =>
         {
             var (_length, consumed) = Varint.Read(bytes, cell - 100);
             var (_id, consumed2) = Varint.Read(bytes, cell - 100 + consumed);
             var start = cell - 100 + consumed + consumed2;
-            var record = Record.Read(bytes[start..]);
-        }
+            var sqlite_master = Record.Read(bytes[start..]);
+
+            return new Schema(sqlite_master); 
+        });
+        return schemas;
     }
-
-}
-
-
-/// <summary>
-/// https://www.sqlite.org/fileformat.html#record_format
-/// </summary>
-public record Record
-{
-    
-    public static Record Read(byte[] bytes)
-    {
-        var (serialTypes, consumedBytes) = ReadRecordHeader(bytes);
-        Console.WriteLine($"length of serialTypes: {serialTypes.Count}");
-        ReadRecordBody(bytes[consumedBytes..], serialTypes);
-        
-        return new Record();
-    }
-
-    /// <summary>
-    /// returns a list of Serial Types after parsing the header
-    /// </summary>
-    /// <param name="bytes"></param>
-    private static (List<Int64> serialTypes, byte consumedBytes) ReadRecordHeader(byte[] bytes)
-    {
-        List<Int64> serialTypes = new List<Int64>();
-        
-        var (totalCountHeaderBytes, consumedBytes) = Varint.Read(bytes, 0);
-        do
-        {
-            // one of these per column, these Types define the datatype of each colum.
-            var (serialType, moreConsumedBytes) = Varint.Read(bytes, consumedBytes);
-            consumedBytes += moreConsumedBytes;
-            serialTypes.Add(serialType);
-
-        } while (consumedBytes < totalCountHeaderBytes);
-
-        return (serialTypes, consumedBytes);
-    }
-
-    private static void ReadRecordBody(byte[] bytes, List<Int64> serialTypes)
-    {
-        foreach (var type in serialTypes)
-        {
-            Console.WriteLine($"type: {type}");
-            var col = Column.ParseColumn(type, bytes);
-            Console.WriteLine(col.DbgEvaluate());
-        }
-    }
-
-    public enum SerialType
-    {
-        Null,
-        
-        Int8,
-        Int16,
-        Int24,
-        Int32,
-        Int48,
-        Int64,
-        
-        Float64,
-        Zero,       // Sqlite's false?
-        One,        // Sqlite's true?
-        Blob,
-        Text
-    }
-
-    public record Column(SerialType Type, byte[] Bytes)
-    {
-        public static Column ParseColumn(Int64 serialType, byte[] bytes)
-        {
-            static int GetLenBlob(Int64 serialType) => (int)(serialType - 13) / 2;
-            static int GetLenText(Int64 serialType) => (int)(serialType - 13) / 2;
-            return serialType switch
-            {
-                0 => new(SerialType.Null, Array.Empty<byte>()),
-                1 => new(SerialType.Int8, bytes[..1]),
-                2 => new(SerialType.Int16, bytes[..2]),
-                3 => new(SerialType.Int24, bytes[..3]),
-                4 => new(SerialType.Int32, bytes[..4]),
-                5 => new(SerialType.Int48, bytes[..6]),
-                6 => new(SerialType.Int64, bytes[..8]),
-                7 => new(SerialType.Float64, bytes[..8]),
-                8 => new(SerialType.Zero, Array.Empty<byte>()),
-                9 => new(SerialType.One, Array.Empty<byte>()),
-                <= 11 => throw new InvalidDataException("Unexpected Data Type: Reserved for internal use."),
-                var odd when odd%2==1 => new(SerialType.Text, bytes[..GetLenBlob(odd)]),
-                var even => new (SerialType.Blob, bytes[..GetLenBlob(even)]),
-            };
-        }
-
-        public Int64 ToInt()
-        {
-            return Type switch
-            {
-                SerialType.Int8 => (Int64)Bytes[0],
-                SerialType.Int16 => BinaryPrimitives.ReadInt16BigEndian(Bytes),
-                // SerialType.Int24 => ReadInt24BigEndian(Bytes),
-                SerialType.Int32 => BinaryPrimitives.ReadInt32BigEndian(Bytes),
-                // SerialType.Int48 => ReadInt48BigEndian(Bytes),
-                SerialType.Int64 => BinaryPrimitives.ReadInt64BigEndian(Bytes),
-                _ => throw new InvalidCastException("Cant convert column type"),
-            };
-        }
-
-        public double ToFloat()
-        {
-            return Type switch
-            {
-                SerialType.Float64 => BinaryPrimitives.ReadDoubleBigEndian(Bytes),
-                _ => throw new InvalidCastException("Cant convert column type"),
-            };
-        }
-
-        public string? ToText()
-        {
-            return Type switch
-            {
-                SerialType.Null => null,
-                SerialType.Text => Encoding.UTF8.GetString(Bytes),
-                _ => throw new InvalidCastException("Cant convert column type"),
-            };
-        }
-
-        public byte[] ToBlob()
-        {
-            return Type switch
-            {
-                SerialType.Null => Array.Empty<byte>(),
-                SerialType.Blob => Bytes,
-                _ => throw new InvalidCastException("Cant convert column type"),
-            };
-        }
-
-        public string DbgEvaluate()
-        {
-            return Type switch
-            {
-                SerialType.Blob => $"Type=Blob: {BitConverter.ToString(Bytes)}",
-                SerialType.Text => $"Type=Text: {ToText()}",
-                SerialType.Null => "Type=Null",
-                SerialType.One => "Type=One",
-                SerialType.Zero => "Type=Zero",
-                SerialType.Float64 => $"Type=Float: {ToFloat()}",
-                _ => $"Type={Type}: {ToInt()} "
-            };
-        }
-    }
-
-    // SerialType      ContentSize  Meaning
-    // 0	                0       Value is a NULL.
-    // 1	                1       Value is an 8-bit twos-complement integer.
-    // 2	                2       Value is a big-endian 16-bit twos-complement integer.
-    // 3	                3       Value is a big-endian 24-bit twos-complement integer.
-    // 4	                4       Value is a big-endian 32-bit twos-complement integer.
-    // 5	                6       Value is a big-endian 48-bit twos-complement integer.
-    // 6	                8       Value is a big-endian 64-bit twos-complement integer.
-    // 7	                8       Value is a big-endian IEEE 754-2008 64-bit floating point number.
-    // 8	                0       Value is the integer 0. (Only available for schema format 4 and higher.)
-    // 9	                0       Value is the integer 1. (Only available for schema format 4 and higher.)
-    // 10,11            variable	Reserved for internal use. These serial type codes will never appear in a well-formed database file, but they might be used in transient and temporary database files that SQLite sometimes generates for its own use. The meanings of these codes can shift from one release of SQLite to the next.
-    // N≥12 and even	(N-12)/2	Value is a BLOB that is (N-12)/2 bytes in length.
-    // N≥13 and odd	    (N-13)/2	Value is a string in the text encoding and (N-13)/2 bytes in length. The nul terminator is not stored.
-}
-
-public class Varint
-{
-    /// <summary>
-    ///     Reads a variable-length integer. Resolves static Huffman encoding of a 64bit int
-    ///     that is optimized for positive low val numbers.
-    /// </summary>
-    /// <param name="bytes">the raw bytes were parsing this from</param>
-    /// <param name="idx">idx to the start byte</param>
-    /// <returns>the 64bit value encoded AND count of the consumed bytes (1-9 possible)</returns>
-    public static (Int64 encodedNr, byte consumedBytes) Read(byte[] bytes, int idx)
-#pragma warning disable CS0675 // Bitwise-or operator used on a sign-extended operand
-    {
-        // most recent byte chunk gets added at the right(so lowest 2^x)
-        Int64 nr = 0;
-        for(var i=0; i<8; i++)
-        {
-            var cutoff = bytes[idx + i] & 0b0111_1111;
-            nr = (nr << 7) | cutoff;
-            if ((bytes[idx + i] & 0b1000_0000) == 0)
-                return (nr, (byte)(i+1));
-        }
-
-        nr = (nr << 8) | bytes[idx];    // 9th byte goes in fully
-        return (nr, 9);
-#pragma warning restore CS0675 // Bitwise-or operator used on a sign-extended operand
-    } 
 }

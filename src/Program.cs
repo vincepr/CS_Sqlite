@@ -17,6 +17,7 @@ if (command == ".dbinfo")
 else if (command == ".tables")
 {
     var sql = new SqLite(path);
+    Console.WriteLine(String.Join(" ",sql.Schemas.Where(el=>el.Name!="sqlite_sequence").Select(el => el.Name)));
 }
 else
 {
