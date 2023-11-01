@@ -124,7 +124,7 @@ the file starts with a header part that is exactly 100 bytes long.
 
 #### 2. btree-page-header
 
-- 8byte for for leaf-pages. 12byte for interior pages.
+- 8byte for for leaf-pages. 12byte for interior pages(last 4 bytes).
 - all multibyte values in the page are big-endian
 
 | offset | size | description                                                        |
@@ -166,14 +166,29 @@ The first byte contains info about the page-type this page is.
 
 | page type                  | 1st byte  | extra info                           |
 |----------------------------|-----------|--------------------------------------|
-| table b-tree interior page | 0x05      |                                      |
-| table b-tree leaf page     | 0x0d      |                                      |
 | index b-tree interior page | 0x02      |                                      |
+| table b-tree interior page | 0x05      |                                      |
 | index b-tree leaf page     | 0x0a      |                                      |
+| table b-tree leaf page     | 0x0d      |                                      |
 | overflow                   | page      | 0x00                                 |for db size ´<´ 64GB|
 | freelist page              | 0x00      | first 8 bytes filled with zero bytes |
 | pointer map                | 0x01-0x05 |                                      |
 | locking page               | 0x00      | only if db-size ´>´ 1GB              |
+
+Index vs Table:
+
+- index btrees use arbitrary keys and store no data at all.
+- table btrees use a 64-signed-bit key and store all data in the leaves.
+
+Interior vs Leaf:
+- interior page contains K keys together with K+1 pointers to child btree pages. 
+  With pointers beeing a 32bit unsigned int page number of the child page.
+- leaf page contains keys and for each key associated data.
+
+- interior index page -
+- interior table page -
+- leaf index page - 
+- leaf table page -
 
 ### Record format
 

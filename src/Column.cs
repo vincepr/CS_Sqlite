@@ -36,7 +36,7 @@ public enum SerialType
     // N≥13 and odd	    (N-13)/2	Value is a string in the text encoding and (N-13)/2 bytes in length. The nul terminator is not stored.
 public record Column(SerialType Type, byte[] Bytes)
     {
-        public static Column ParseColumn(Int64 serialType, byte[] bytes)
+        public static Column Read(Int64 serialType, byte[] bytes)
         {
             static int GetLenBlob(Int64 serialType) => (int)(serialType - 13) / 2;
             static int GetLenText(Int64 serialType) => (int)(serialType - 13) / 2;

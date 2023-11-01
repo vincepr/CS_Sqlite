@@ -1,4 +1,4 @@
-using CS_Sqlite;
+namespace CS_Sqlite;
 
 /// <summary>
 /// https://www.sqlite.org/fileformat.html#record_format
@@ -38,7 +38,7 @@ public record Record(List<Column> Table)
         List<Column> cols = new();
         foreach (var type in serialTypes)
         {
-            var col = Column.ParseColumn(type, bytes[consumedBytes..]);
+            var col = Column.Read(type, bytes[consumedBytes..]);
             consumedBytes += col.Bytes.Length;
             cols.Add(col);
         }

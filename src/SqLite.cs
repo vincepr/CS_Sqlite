@@ -50,7 +50,6 @@ internal class SqLite
         // _file.Seek(0, SeekOrigin.Begin); // TODO: remove this after testing
     }
 
-
     private byte[] ReadBytes(int size)
     {
         var bytes = new byte[size];
@@ -60,8 +59,6 @@ internal class SqLite
     }
 
     // Destructor
-
-
     ~SqLite()
     {
         _file.Close();
@@ -156,11 +153,11 @@ internal class SqLite
 
     private IEnumerable<Schema> ReadFirstPage(bool isLogInfo = false)
     {
-        // this directly follows the 100byte header. So it must be called after reading those bytes or Seek(100)
         // stores info about all tables in this file.
         // - aka the sqlite schema
 
         var bytes = ReadBytes(_dbPageSize - 100);
+        var (header, consumedBytes) = PageHeader.Read(bytes);
 
         // we expect this to be a leaf table btree-page. Nothing must be at the start?
         if (bytes[0] != 13)
@@ -189,24 +186,19 @@ internal class SqLite
 
     public void ReadPage(int pageNr)
     {
-        // root_page seems to start with index 1!
+        // root_page seems to start with index 1 not 0!
         pageNr -= 1;
         _file.Seek(_dbPageSize*pageNr, SeekOrigin.Begin);
         var bytes = ReadBytes(_dbPageSize);
-        if (bytes[0] != 13)
-            throw new InvalidDataException(
-                $"For now we only read first page of table -> we EXPECT a leaf table btree-page. GOT TYPE: {bytes[0]}");
-        // if (bytes[0] == 2) Console.WriteLine("type: interior index btree-page"); 
-        // else if (bytes[0] == 5) Console.WriteLine("type: interior table btree-page"); 
-        // else if (bytes[0] == 10) Console.WriteLine("type: leaf index btree-page"); 
-        // else if (bytes[0] == 13) Console.WriteLine("type: leaf table btree-page");
-        // else throw new InvalidDataException("Illegal flag for b-tree page type."); 
-
-        var nrOfEntries = BinaryPrimitives.ReadUInt16BigEndian(bytes[3..(3 + 2)]);
-        Console.WriteLine("SELECT Count(*) = " + nrOfEntries);
-        
-        
-        
-
+        var (header, consumedBytes) = PageHeader.Read(bytes);
+        Console.WriteLine(header);
     }
+}
+
+public enum PageType
+{
+    InteriorIndex = 2,      // byte = 2
+    InteriorTable = 5,          // byte = 5
+    LeafIndex = 10,     // byte = 10
+    LeafTable = 13,         // byte = 13
 }
