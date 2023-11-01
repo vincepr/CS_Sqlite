@@ -1,6 +1,9 @@
 
 
 // Parse arguments
+
+using System.Xml.Serialization;
+
 var (path, command) = args.Length switch
 {
     0 => throw new InvalidOperationException("Missing <database path> and <command>"),
@@ -43,7 +46,24 @@ static void ExecuteSql(string path, string command)
 static void SqlSelectCountFrom(string path, string command)
 {
     var cmdTable = command.ToLower().Split(" ").Last();
-    var sql = new SqLite(path, true);
+    var sql = new SqLite(path);
+    var tables = sql.Schemas.Where(el => el.Name == cmdTable).ToList();
+   
+    if (tables.Count != 1)
+        throw new InvalidDataException("Could not find table or found to many tables with that name");
+    
+    var table = tables.First();
+    var page = sql.ReadPage((int)table.RootPage);
+    Console.WriteLine(page.Count());
+}
+
+// "SELECT name FROM apples")
+static void SqlSelectStarFrom(string path, string command)
+{
+    var cmdTable = command.ToLower().Split(" ").Last();
+    var cmdRowname = command.ToLower().Split(" ").Skip(1).First().TrimEnd(',');
+    
+    var sql = new SqLite(path);
     var tables = sql.Schemas.Where(el => el.Name == cmdTable).ToList();
    
     if (tables.Count != 1)
@@ -53,7 +73,8 @@ static void SqlSelectCountFrom(string path, string command)
     var page = sql.ReadPage((int)table.RootPage);
     foreach (var row in page)
     {
-        Console.WriteLine(row);
+       Console.WriteLine(row);
     }
 
 }
+

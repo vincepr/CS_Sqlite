@@ -194,7 +194,7 @@ internal class SqLite
 
         if (header.Type is PageType.LeafTable)
         {
-            // iterate over page
+            // iterate over page with the raw data
             var cellPointers = bytes[consumedBytes..]
                 .Chunk(2)
                 .Take(header.NumberCells)
@@ -208,7 +208,27 @@ internal class SqLite
             });
             return records;
         }
-        throw new NotImplementedException();
+
+        if (header.Type is PageType.InteriorTable)
+        {
+            // a page that holds more leafTables with the actual data
+            var cellPointers = bytes[consumedBytes..]
+                .Chunk(2)
+                .Take(header.NumberCells)
+                .Select(u => BinaryPrimitives.ReadUInt16BigEndian(u));
+            
+            var rightMostPointer = header.RightMostPointer ?? throw new Exception("This should never be null");
+            var records = cellPointers.Select(cell =>
+            {
+                var leftChildPointer = BinaryPrimitives.ReadUInt32BigEndian(bytes[cell..]);
+                var (rowId, _) = Varint.Read(bytes, cell + 4 );
+                // TODO: work in progress here
+                return 1;
+            });
+            foreach(var r in records)
+                Console.WriteLine(r);
+        }
+        throw new NotImplementedException($"We cant get data from {header.Type} for now");
     }
 }
 

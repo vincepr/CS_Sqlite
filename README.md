@@ -48,7 +48,7 @@ $ ./CS_Sqlite sample.db .tables
 
 - should print out names of all tables
 
-## Count rows in a table
+## [x] Count rows in a table
 
 ```
 $ ./CS_Sqlite "SELECT COUNT(*) FROM apples"
@@ -62,20 +62,20 @@ rootpage stores page number of root b-tree page for tables and indexes.
 
 Page number is 1-indexed so to get the offset we need to subtract page_number - 1
 
-## Read data from a single column
+## [] Read data from a single column
 
 ```
 $ ./CS_Sqlite sample.db "SELECT name FROM apples"
 
 ```
 
-## Read data from multiple columns
+## [] Read data from multiple columns
 
 ```
 $ ./CS_Sqlite sample.db "SELECT name, color FROM apples"
 ```
 
-## Filter data with a where clause
+## [] Filter data with a where clause
 
 ```
 $ ./CS_Sqlite sample.db "SELECT name, color FROM apples WHERE color = 'Yellow'"
@@ -83,7 +83,7 @@ $ ./CS_Sqlite sample.db "SELECT name, color FROM apples WHERE color = 'Yellow'"
 
 - implement it for one page first
 
-## Retreive data using a full-table scan
+## [] Retreive data using a full-table scan
 
 ```
 $ ./CS_Sqlite superheroes.db "SELECT id, name FROM superheroes WHERE eye_color = 'Pink Eyes'"
@@ -96,7 +96,7 @@ $ ./CS_Sqlite superheroes.db "SELECT id, name FROM superheroes WHERE eye_color =
 
 - traversing a b-tree https://medium.com/basecs/busying-oneself-with-b-trees-78bbf10522e7
 
-## Retrieve data using an index
+## [] Retrieve data using an index
 
 ```
 $ ./CS_Sqlite companies.db "SELECT id, name FROM companies WHERE country = 'eritrea'"

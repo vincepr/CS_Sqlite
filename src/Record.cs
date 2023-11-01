@@ -46,8 +46,8 @@ public record Record(List<Column> Table)
             cols.Add(col);
         }
         
-        // TDODO:
-        // - 1st entry always seems null. IS THIS PLACEHOLDER FOR ID?
+        // TODO:
+        // - 1st entry always seems null. IS THIS PLACEHOLDER FOR ID (we have id with the cellPointers)?
         // - where to get row-headings form? master_table has the CREATE TABLE(.... name text) but parsing that sucks?
 
         return cols;
