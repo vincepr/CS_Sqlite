@@ -158,17 +158,17 @@ internal class SqLite
 
         var bytes = ReadBytes(_dbPageSize - 100);
         var (header, consumedBytes) = PageHeader.Read(bytes);
-
-        // we expect this to be a leaf table btree-page. Nothing must be at the start?
-        if (bytes[0] != 13)
+        
+        // we expect this to be a leaf table btree-page. Nothing else should be at the start?
+        if (header.Type is not PageType.LeafTable)
             throw new InvalidDataException("Type of first page MUST be a leaf table btree-page. val=13");
-
+        
         // we know every cell in this first table will represent a db-table so:
-        _nrOfTables = BinaryPrimitives.ReadUInt16BigEndian(bytes[3..(3 + 2)]);
+        _nrOfTables = header.NumberCells;
         if (isLogInfo) Console.WriteLine($"Number of tables: {_nrOfTables}");
 
         // obtain all cell pointers (2byte each)
-        var cellPointers = bytes[8..]
+        var cellPointers = bytes[consumedBytes..]
             .Chunk(2)
             .Take(_nrOfTables)
             .Select(u => BinaryPrimitives.ReadUInt16BigEndian(u));
@@ -184,14 +184,31 @@ internal class SqLite
         return schemas;
     }
 
-    public void ReadPage(int pageNr)
+    public IEnumerable<Record> ReadPage(int pageNr)
     {
         // root_page seems to start with index 1 not 0!
         pageNr -= 1;
         _file.Seek(_dbPageSize*pageNr, SeekOrigin.Begin);
         var bytes = ReadBytes(_dbPageSize);
         var (header, consumedBytes) = PageHeader.Read(bytes);
-        Console.WriteLine(header);
+
+        if (header.Type is PageType.LeafTable)
+        {
+            // iterate over page
+            var cellPointers = bytes[consumedBytes..]
+                .Chunk(2)
+                .Take(header.NumberCells)
+                .Select(u => BinaryPrimitives.ReadUInt16BigEndian(u));
+            var records = cellPointers.Select(cell =>
+            {
+                var (_length, consumed) = Varint.Read(bytes, cell);
+                var (_id, consumed2) = Varint.Read(bytes, cell + consumed);
+                var start = cell + consumed + consumed2;
+                return Record.Read(bytes[start..]);
+            });
+            return records;
+        }
+        throw new NotImplementedException();
     }
 }
 

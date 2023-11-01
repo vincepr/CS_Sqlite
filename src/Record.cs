@@ -5,6 +5,9 @@ namespace CS_Sqlite;
 /// </summary>
 public record Record(List<Column> Table)
 {
+    public override String ToString() =>
+        String.Join(" ", Table);
+
     public static Record Read(byte[] bytes)
     {
         var (serialTypes, consumedBytes) = ReadRecordHeader(bytes);
@@ -42,6 +45,10 @@ public record Record(List<Column> Table)
             consumedBytes += col.Bytes.Length;
             cols.Add(col);
         }
+        
+        // TDODO:
+        // - 1st entry always seems null. IS THIS PLACEHOLDER FOR ID?
+        // - where to get row-headings form? master_table has the CREATE TABLE(.... name text) but parsing that sucks?
 
         return cols;
     }

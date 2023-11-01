@@ -50,7 +50,10 @@ static void SqlSelectCountFrom(string path, string command)
         throw new InvalidDataException("Could not find table or found to many tables with that name");
     
     var table = tables.First();
-    sql.ReadPage((int)table.RootPage);
-
+    var page = sql.ReadPage((int)table.RootPage);
+    foreach (var row in page)
+    {
+        Console.WriteLine(row);
+    }
 
 }

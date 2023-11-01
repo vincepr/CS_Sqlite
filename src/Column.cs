@@ -105,13 +105,15 @@ public record Column(SerialType Type, byte[] Bytes)
         {
             return Type switch
             {
-                SerialType.Blob => $"Type=Blob: {BitConverter.ToString(Bytes)}",
-                SerialType.Text => $"Type=Text: {ToText()}",
+                SerialType.Blob => $"Type=Blob|Value={BitConverter.ToString(Bytes)}",
+                SerialType.Text => $"Type=Text|Value={ToText()}",
                 SerialType.Null => "Type=Null",
                 SerialType.One => "Type=One",
                 SerialType.Zero => "Type=Zero",
-                SerialType.Float64 => $"Type=Float: {ToFloat()}",
-                _ => $"Type={Type}: {ToInt()} "
+                SerialType.Float64 => $"Type=Float|Value={ToFloat()}",
+                _ => $"Type={Type}|Value={ToInt()} "
             };
         }
+
+        public override String ToString() => $"Column<{DbgEvaluate()}>";
     }
